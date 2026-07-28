@@ -247,7 +247,13 @@ app.post("/whatsapp-web-management/sessions/events", async (c) => {
         service: "whatsapp-web",
         address,
         status: "connected",
-        extra,
+        // For whatsapp-web the address IS the bare phone number (unlike the
+        // Cloud API, where address is an opaque phone_number_id). Mirror it into
+        // extra.phone_number so consumers that key off that field work across
+        // both services — notably the MCP `Allowed-Accounts` filter, which
+        // matches on extra->>phone_number and would otherwise never match a
+        // whatsapp-web account.
+        extra: { ...extra, phone_number: address },
       })
       .throwOnError();
   } else if (event === "logged_out") {
