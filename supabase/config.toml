@@ -91,3 +91,8 @@ entrypoint = "./functions/mcp/index.ts"
 verify_jwt = false
 import_map = "./functions/deno.json"
 entrypoint = "./functions/storage-gc/index.ts"
+
+[functions.whatsapp-click-tracker]
+verify_jwt = false
+import_map = "./functions/deno.json"
+entrypoint = "./functions/whatsapp-click-tracker/index.ts"
