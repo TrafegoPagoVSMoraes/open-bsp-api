@@ -5,6 +5,8 @@ import { HTTPException } from "jsr:@hono/hono/http-exception";
 import { ContentfulStatusCode } from "jsr:@hono/hono/utils/http-status";
 
 const API_VERSION = "v24.0";
+const DEFAULT_ACCESS_TOKEN =
+  Deno.env.get("META_SYSTEM_USER_ACCESS_TOKEN")?.trim() || "";
 
 async function getBusinessCredentials(
   client: SupabaseClient<Database>,
@@ -13,20 +15,46 @@ async function getBusinessCredentials(
 ): Promise<{ waba_id: string; access_token: string }> {
   const { data, error } = await client
     .from("organizations_addresses")
-    .select("extra->>waba_id, extra->>access_token")
+    .select(
+      "waba_id:extra->>waba_id, access_token:extra->>access_token",
+    )
     .eq("organization_id", organization_id)
     .eq("address", organization_address)
     .single();
 
   if (error || !data) {
-    log.error("Could not fetch business access token", error);
+    log.error("Could not fetch WhatsApp business credentials", error);
     throw new HTTPException(403, {
-      message: "Could not fetch business access token",
+      message: "Could not fetch WhatsApp business credentials",
       cause: error,
     });
   }
 
-  return data;
+  const credentials = data as {
+    waba_id: string | null;
+    access_token: string | null;
+  };
+
+  const waba_id = credentials.waba_id?.trim();
+  const access_token =
+    credentials.access_token?.trim() || DEFAULT_ACCESS_TOKEN;
+
+  if (!waba_id) {
+    throw new HTTPException(500, {
+      message: "WhatsApp WABA ID is not configured",
+    });
+  }
+
+  if (!access_token) {
+    log.error("No Meta access token configured");
+
+    throw new HTTPException(500, {
+      message:
+        "No Meta access token configured. Set META_SYSTEM_USER_ACCESS_TOKEN.",
+    });
+  }
+
+  return { waba_id, access_token };
 }
 
 export async function listTemplates(
