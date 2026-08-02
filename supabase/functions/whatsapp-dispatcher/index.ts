@@ -18,7 +18,8 @@ import { markdownToWhatsApp } from "../_shared/markdown.ts";
 const API_VERSION = "v24.0";
 const DEFAULT_ACCESS_TOKEN = Deno.env.get("META_SYSTEM_USER_ACCESS_TOKEN") ||
   "";
-const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const INTERNAL_DISPATCH_TOKEN =
+  Deno.env.get("OPENBSP_INTERNAL_DISPATCH_TOKEN") || "";
 
 // A business-scoped user ID (BSUID) is the user's ISO 3166 alpha-2 country code,
 // a period, then alphanumerics (e.g. US.13491208655302741918; parent BSUIDs add
@@ -403,9 +404,9 @@ async function postPayloadToWhatsAppEndpoint({
 
 Deno.serve(async (req) => {
   const authHeader = req.headers.get("Authorization");
-  const token = authHeader?.replace("Bearer ", "");
+  const token = authHeader?.replace(/^Bearer\s+/i, "").trim();
 
-  if (token !== SERVICE_ROLE_KEY) {
+  if (!INTERNAL_DISPATCH_TOKEN || !token || token !== INTERNAL_DISPATCH_TOKEN) {
     return new Response("Unauthorized", { status: 401 });
   }
 
