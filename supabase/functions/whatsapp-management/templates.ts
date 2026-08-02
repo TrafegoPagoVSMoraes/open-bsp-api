@@ -61,29 +61,70 @@ export async function listTemplates(
   client: SupabaseClient<Database>,
   organization_id: string,
   organization_address: string,
-): Promise<TemplateData[]> {
+): Promise<{ data: TemplateData[] }> {
   const { waba_id, access_token } = await getBusinessCredentials(
     client,
     organization_id,
     organization_address,
   );
 
-  const response = await fetch(
-    `https://graph.facebook.com/${API_VERSION}/${waba_id}/message_templates`,
-    {
+  type MetaTemplatesPage = {
+    data?: TemplateData[];
+    paging?: { cursors?: { before?: string; after?: string } };
+  };
+
+  const startedAt = performance.now();
+  const templates = new Map<string, TemplateData>();
+  let after: string | undefined;
+  let previousCursor: string | undefined;
+  let pages = 0;
+
+  for (let page = 0; page < 100; page++) {
+    const url = new URL(
+      `https://graph.facebook.com/${API_VERSION}/${waba_id}/message_templates`,
+    );
+    url.searchParams.set("limit", "100");
+    url.searchParams.set(
+      "fields",
+      "id,name,status,category,language,components",
+    );
+    if (after) url.searchParams.set("after", after);
+
+    const response = await fetch(url, {
       method: "GET",
       headers: { Authorization: `Bearer ${access_token}` },
-    },
-  );
-
-  if (!response.ok) {
-    throw new HTTPException(response.status as ContentfulStatusCode, {
-      message: "Could not fetch templates",
-      cause: await response.json().catch(() => ({})),
     });
+
+    if (!response.ok) {
+      throw new HTTPException(response.status as ContentfulStatusCode, {
+        message: "Could not fetch templates",
+        cause: await response.json().catch(() => ({})),
+      });
+    }
+
+    const result = (await response.json()) as MetaTemplatesPage;
+    pages++;
+    for (const template of result.data ?? []) templates.set(template.id, template);
+
+    const nextCursor = result.paging?.cursors?.after;
+    if (
+      !nextCursor ||
+      nextCursor === after ||
+      nextCursor === previousCursor ||
+      !result.data?.length
+    ) break;
+
+    previousCursor = after;
+    after = nextCursor;
   }
 
-  return await response.json();
+  log.info("Fetched WhatsApp templates", {
+    pages,
+    total: templates.size,
+    duration_ms: Math.round(performance.now() - startedAt),
+  });
+
+  return { data: Array.from(templates.values()) };
 }
 
 export async function fetchTemplate(
