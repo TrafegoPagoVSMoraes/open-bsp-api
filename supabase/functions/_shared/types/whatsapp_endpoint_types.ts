@@ -3,6 +3,7 @@ import type {
   LocationMessage,
 } from "./whatsapp_webhook_message_types.ts";
 import type { TemplateMessage } from "./whatsapp_template_types.ts";
+import type { OutgoingInteractiveData } from "./message_types.ts";
 
 //===================================
 // Outgoing message components, as sent to the WhatsApp Cloud API
@@ -60,6 +61,13 @@ export type OutgoingSticker = {
   sticker: { id: string } | { link: string };
 };
 
+// Outgoing Interactive (reply buttons)
+
+export type OutgoingInteractive = {
+  type: "interactive";
+  interactive: OutgoingInteractiveData;
+};
+
 //===================================
 // Endpoint message, as sent to the WhatsApp endpoint
 //===================================
@@ -86,6 +94,7 @@ export type EndpointMessage =
     | TemplateMessage
     | OutgoingText
     | OutgoingVideo
+    | OutgoingInteractive
   );
 
 export type EndpointMessageResponse = {

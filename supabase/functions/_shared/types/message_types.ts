@@ -151,6 +151,33 @@ export type DataPart<Kind = "data", T = Json> = {
 
 type ContactsPart = DataPart<"contacts", Contact[]>;
 
+// Outgoing Interactive Reply Button types
+// Only used for outgoing messages. Incoming interactive messages use
+// InteractiveMessage from whatsapp_webhook_message_types.ts.
+
+export type OutgoingInteractiveReplyButton = {
+  type: "reply";
+  reply: {
+    id: string;
+    title: string;
+  };
+};
+
+export type OutgoingInteractiveData = {
+  type: "button";
+  body: {
+    text: string;
+  };
+  footer?: {
+    text: string;
+  };
+  action: {
+    buttons: OutgoingInteractiveReplyButton[];
+  };
+};
+
+type OutgoingInteractivePart = DataPart<"interactive", OutgoingInteractiveData>;
+
 type LocationPart = DataPart<"location", Location>;
 
 type OrderPart = DataPart<"order", Order>;
@@ -260,4 +287,11 @@ export type OutgoingMessage =
     forwarded?: boolean;
   }
   & TaskInfo
-  & (TextPart | FilePart | ContactsPart | LocationPart | TemplatePart);
+  & (
+    | TextPart
+    | FilePart
+    | ContactsPart
+    | LocationPart
+    | TemplatePart
+    | OutgoingInteractivePart
+  );
