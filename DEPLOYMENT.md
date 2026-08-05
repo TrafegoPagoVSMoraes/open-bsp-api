@@ -19,7 +19,8 @@ do Forteens e não move as Edge Functions para Cloudflare Workers.
 - UI: https://open-bsp.pages.dev
 - Supabase: projeto `open-bsp`, região `sa-east-1`
 - API: https://wiqzhkxjraarkesqlwzl.supabase.co
-- Webhook: https://wiqzhkxjraarkesqlwzl.supabase.co/functions/v1/whatsapp-webhook
+- Webhook:
+  https://wiqzhkxjraarkesqlwzl.supabase.co/functions/v1/whatsapp-webhook
 - Fork da API: https://github.com/TrafegoPagoVSMoraes/open-bsp-api
 - Fork da UI: https://github.com/TrafegoPagoVSMoraes/open-bsp-ui
 
@@ -53,9 +54,9 @@ token de verificação do webhook.
 
 ## Deploy da API
 
-O mecanismo único de produção é o workflow oficial `Release` do repositório.
-A integração automática Supabase/GitHub fica desativada para evitar dois
-pipelines concorrentes.
+O mecanismo único de produção é o workflow oficial `Release` do repositório. A
+integração automática Supabase/GitHub fica desativada para evitar dois pipelines
+concorrentes.
 
 1. Atualize os segredos e variáveis em GitHub Actions.
 2. Execute o workflow `Release` na branch `main`.
@@ -103,9 +104,9 @@ separada. Não faça push forçado na `main`.
 
 ## Diagnóstico básico
 
-Verifique, nesta ordem: deployment do Pages, console/rede do navegador,
-Supabase Auth, RLS, Realtime, logs das Edge Functions, migrations, segredos,
-configuração do webhook e permissões do usuário de sistema da Meta.
+Verifique, nesta ordem: deployment do Pages, console/rede do navegador, Supabase
+Auth, RLS, Realtime, logs das Edge Functions, migrations, segredos, configuração
+do webhook e permissões do usuário de sistema da Meta.
 
 Não desative RLS, não use service role no navegador e não troque a Cloud API por
 automação de WhatsApp Web.

@@ -36,8 +36,7 @@ async function getBusinessCredentials(
   };
 
   const waba_id = credentials.waba_id?.trim();
-  const access_token =
-    credentials.access_token?.trim() || DEFAULT_ACCESS_TOKEN;
+  const access_token = credentials.access_token?.trim() || DEFAULT_ACCESS_TOKEN;
 
   if (!waba_id) {
     throw new HTTPException(500, {
@@ -104,7 +103,9 @@ export async function listTemplates(
 
     const result = (await response.json()) as MetaTemplatesPage;
     pages++;
-    for (const template of result.data ?? []) templates.set(template.id, template);
+    for (const template of result.data ?? []) {
+      templates.set(template.id, template);
+    }
 
     const nextCursor = result.paging?.cursors?.after;
     if (
