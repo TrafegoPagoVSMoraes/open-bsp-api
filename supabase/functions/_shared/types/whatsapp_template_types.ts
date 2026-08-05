@@ -21,7 +21,7 @@ export type TemplateData = {
     | "DISABLED"
     | "PAUSED"
     | "LIMIT_EXCEEDED";
-  category: "MARKETING"; // TODO: service and auth categories - cabra 2024/09/12
+  category: "MARKETING" | "UTILITY" | "AUTHENTICATION";
   language: string;
   components: (
     | BodyComponent
@@ -56,12 +56,19 @@ type FooterComponent = {
 
 type ButtonsComponent = {
   type: "BUTTONS";
-  buttons: QuickReply[]; // TODO: call to action buttons - cabra 2024/09/12
+  buttons: (QuickReply | UrlButton)[];
 };
 
 type QuickReply = {
   type: "QUICK_REPLY";
   text: string;
+};
+
+type UrlButton = {
+  type: "URL";
+  text: string;
+  url: string;
+  example?: string[];
 };
 
 // Template message, used to send a template message
@@ -86,6 +93,8 @@ type DateTimeParameter = {
 type TextParameter = {
   type: "text";
   text: string;
+  // Optional to preserve positional templates while supporting named ones.
+  parameter_name?: string;
 };
 
 type TemplateParameter =
@@ -122,7 +131,7 @@ type TemplateButton =
     | {
       sub_type: "url";
       parameters: {
-        type: "url";
+        type: "text";
         text: string;
       }[];
     }
