@@ -1085,6 +1085,329 @@ export type Database = {
           },
         ]
       }
+      tracking_events: {
+        Row: {
+          accept_language: string | null
+          browser_family: string | null
+          classification: Database["public"]["Enums"]["tracking_classification"]
+          country: string | null
+          device_type: string | null
+          element_id: string | null
+          event_id: string
+          event_name: string
+          event_type: Database["public"]["Enums"]["tracking_event_type"]
+          id: string
+          message_id: string | null
+          metadata: Json
+          occurred_at: string
+          organization_id: string
+          os_family: string | null
+          page_path: string | null
+          project_id: string
+          received_at: string
+          referer: string | null
+          region: string | null
+          request_id: string | null
+          tracking_link_id: string | null
+          tracking_session_id: string | null
+        }
+        Insert: {
+          accept_language?: string | null
+          browser_family?: string | null
+          classification?: Database["public"]["Enums"]["tracking_classification"]
+          country?: string | null
+          device_type?: string | null
+          element_id?: string | null
+          event_id: string
+          event_name: string
+          event_type: Database["public"]["Enums"]["tracking_event_type"]
+          id?: string
+          message_id?: string | null
+          metadata?: Json
+          occurred_at: string
+          organization_id: string
+          os_family?: string | null
+          page_path?: string | null
+          project_id: string
+          received_at?: string
+          referer?: string | null
+          region?: string | null
+          request_id?: string | null
+          tracking_link_id?: string | null
+          tracking_session_id?: string | null
+        }
+        Update: {
+          accept_language?: string | null
+          browser_family?: string | null
+          classification?: Database["public"]["Enums"]["tracking_classification"]
+          country?: string | null
+          device_type?: string | null
+          element_id?: string | null
+          event_id?: string
+          event_name?: string
+          event_type?: Database["public"]["Enums"]["tracking_event_type"]
+          id?: string
+          message_id?: string | null
+          metadata?: Json
+          occurred_at?: string
+          organization_id?: string
+          os_family?: string | null
+          page_path?: string | null
+          project_id?: string
+          received_at?: string
+          referer?: string | null
+          region?: string | null
+          request_id?: string | null
+          tracking_link_id?: string | null
+          tracking_session_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tracking_events_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "messages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tracking_events_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tracking_events_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "tracking_projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tracking_events_tracking_link_id_fkey"
+            columns: ["tracking_link_id"]
+            isOneToOne: false
+            referencedRelation: "tracking_links"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tracking_events_tracking_session_id_fkey"
+            columns: ["tracking_session_id"]
+            isOneToOne: false
+            referencedRelation: "tracking_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tracking_links: {
+        Row: {
+          attribution: Json
+          created_at: string
+          destination_url: string
+          disabled_at: string | null
+          expires_at: string
+          first_opened_at: string | null
+          id: string
+          idempotency_key: string
+          last_opened_at: string | null
+          message_id: string | null
+          organization_id: string
+          project_id: string
+          source: string
+          token_hash: string
+          updated_at: string
+        }
+        Insert: {
+          attribution?: Json
+          created_at?: string
+          destination_url: string
+          disabled_at?: string | null
+          expires_at: string
+          first_opened_at?: string | null
+          id?: string
+          idempotency_key: string
+          last_opened_at?: string | null
+          message_id?: string | null
+          organization_id: string
+          project_id: string
+          source?: string
+          token_hash: string
+          updated_at?: string
+        }
+        Update: {
+          attribution?: Json
+          created_at?: string
+          destination_url?: string
+          disabled_at?: string | null
+          expires_at?: string
+          first_opened_at?: string | null
+          id?: string
+          idempotency_key?: string
+          last_opened_at?: string | null
+          message_id?: string | null
+          organization_id?: string
+          project_id?: string
+          source?: string
+          token_hash?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tracking_links_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "messages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tracking_links_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tracking_links_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "tracking_projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tracking_projects: {
+        Row: {
+          allowed_origins: string[]
+          created_at: string
+          default_destination_url: string | null
+          direct_session_rate_limit_per_minute: number
+          id: string
+          metadata: Json
+          name: string
+          organization_id: string
+          public_key: string
+          retention_days: number
+          session_ttl_minutes: number
+          slug: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          allowed_origins: string[]
+          created_at?: string
+          default_destination_url?: string | null
+          direct_session_rate_limit_per_minute?: number
+          id?: string
+          metadata?: Json
+          name: string
+          organization_id: string
+          public_key?: string
+          retention_days?: number
+          session_ttl_minutes?: number
+          slug: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          allowed_origins?: string[]
+          created_at?: string
+          default_destination_url?: string | null
+          direct_session_rate_limit_per_minute?: number
+          id?: string
+          metadata?: Json
+          name?: string
+          organization_id?: string
+          public_key?: string
+          retention_days?: number
+          session_ttl_minutes?: number
+          slug?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tracking_projects_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tracking_sessions: {
+        Row: {
+          created_at: string
+          event_count: number
+          expires_at: string
+          id: string
+          last_seen_at: string
+          message_id: string | null
+          organization_id: string
+          origin: string
+          project_id: string
+          revoked_at: string | null
+          session_token_hash: string
+          tracking_link_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          event_count?: number
+          expires_at: string
+          id?: string
+          last_seen_at?: string
+          message_id?: string | null
+          organization_id: string
+          origin: string
+          project_id: string
+          revoked_at?: string | null
+          session_token_hash: string
+          tracking_link_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          event_count?: number
+          expires_at?: string
+          id?: string
+          last_seen_at?: string
+          message_id?: string | null
+          organization_id?: string
+          origin?: string
+          project_id?: string
+          revoked_at?: string | null
+          session_token_hash?: string
+          tracking_link_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tracking_sessions_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "messages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tracking_sessions_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tracking_sessions_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "tracking_projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tracking_sessions_tracking_link_id_fkey"
+            columns: ["tracking_link_id"]
+            isOneToOne: false
+            referencedRelation: "tracking_links"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       webhooks: {
         Row: {
           created_at: string
@@ -1126,6 +1449,71 @@ export type Database = {
           },
         ]
       }
+      whatsapp_click_events: {
+        Row: {
+          clicked_at: string
+          id: number
+          link_id: string
+          user_agent: string | null
+        }
+        Insert: {
+          clicked_at?: string
+          id?: never
+          link_id: string
+          user_agent?: string | null
+        }
+        Update: {
+          clicked_at?: string
+          id?: never
+          link_id?: string
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_click_events_link_id_fkey"
+            columns: ["link_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_click_links"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      whatsapp_click_links: {
+        Row: {
+          campaign: string
+          created_at: string
+          destination_url: string
+          disabled_at: string | null
+          expires_at: string | null
+          id: string
+          message_external_id: string | null
+          recipient_reference: string | null
+          token: string
+        }
+        Insert: {
+          campaign: string
+          created_at?: string
+          destination_url: string
+          disabled_at?: string | null
+          expires_at?: string | null
+          id?: string
+          message_external_id?: string | null
+          recipient_reference?: string | null
+          token: string
+        }
+        Update: {
+          campaign?: string
+          created_at?: string
+          destination_url?: string
+          disabled_at?: string | null
+          expires_at?: string | null
+          id?: string
+          message_external_id?: string | null
+          recipient_reference?: string | null
+          token?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -1141,6 +1529,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      cleanup_tracking_data: { Args: never; Returns: Json }
       contact_address_update_rules: {
         Args: {
           p_address: string
@@ -1151,9 +1540,51 @@ export type Database = {
         }
         Returns: boolean
       }
+      create_tracking_link: {
+        Args: {
+          p_attribution?: Json
+          p_destination_url: string
+          p_expires_at: string
+          p_idempotency_key: string
+          p_message_id?: string
+          p_organization_id: string
+          p_project_id: string
+          p_source?: string
+          p_token_hash: string
+        }
+        Returns: {
+          created: boolean
+          link_expires_at: string
+          token_matches: boolean
+          tracking_link_id: string
+        }[]
+      }
+      create_tracking_session: {
+        Args: {
+          p_event_count: number
+          p_origin: string
+          p_public_key: string
+          p_session_token_hash: string
+        }
+        Returns: {
+          expires_at: string
+          organization_id: string
+          project_id: string
+          tracking_session_id: string
+        }[]
+      }
       get_authorized_orgs: {
         Args: { role?: Database["public"]["Enums"]["role"] }
         Returns: string[]
+      }
+      get_tracking_dashboard: {
+        Args: {
+          p_from?: string
+          p_organization_id: string
+          p_project_id?: string
+          p_to?: string
+        }
+        Returns: Json
       }
       init_data: {
         Args: {
@@ -1183,6 +1614,48 @@ export type Database = {
         Args: { p_id: string; p_name: string }
         Returns: boolean
       }
+      record_tracking_open: {
+        Args: {
+          p_accept_language?: string
+          p_browser_family?: string
+          p_classification: Database["public"]["Enums"]["tracking_classification"]
+          p_country?: string
+          p_device_type?: string
+          p_event_id: string
+          p_occurred_at: string
+          p_os_family?: string
+          p_referer?: string
+          p_region?: string
+          p_request_id?: string
+          p_session_token_hash: string
+          p_token_hash: string
+        }
+        Returns: {
+          destination_url: string
+          message_id: string
+          organization_id: string
+          project_id: string
+          tracking_link_id: string
+          tracking_session_id: string
+        }[]
+      }
+      reserve_tracking_session: {
+        Args: {
+          p_event_count: number
+          p_origin: string
+          p_session_token_hash: string
+        }
+        Returns: {
+          event_count: number
+          expires_at: string
+          message_id: string
+          organization_id: string
+          project_id: string
+          session_origin: string
+          tracking_link_id: string
+          tracking_session_id: string
+        }[]
+      }
     }
     Enums: {
       direction: "incoming" | "outgoing" | "internal"
@@ -1196,6 +1669,20 @@ export type Database = {
         | "discord"
         | "teams"
         | "whatsapp-web"
+      tracking_classification:
+        | "human_candidate"
+        | "bot"
+        | "preview"
+        | "prefetch"
+        | "unknown"
+      tracking_event_type:
+        | "link_open"
+        | "page_view"
+        | "click"
+        | "form_start"
+        | "form_submit"
+        | "conversion"
+        | "custom"
       webhook_operation: "insert" | "update"
       webhook_table:
         | "messages"
@@ -1890,6 +2377,22 @@ export const Constants = {
         "discord",
         "teams",
         "whatsapp-web",
+      ],
+      tracking_classification: [
+        "human_candidate",
+        "bot",
+        "preview",
+        "prefetch",
+        "unknown",
+      ],
+      tracking_event_type: [
+        "link_open",
+        "page_view",
+        "click",
+        "form_start",
+        "form_submit",
+        "conversion",
+        "custom",
       ],
       webhook_operation: ["insert", "update"],
       webhook_table: [
