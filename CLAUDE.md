@@ -133,3 +133,15 @@ npx supabase gen types typescript --local > supabase/functions/_shared/db_types.
 
 The UI repo mirrors this file at `open-bsp-ui/src/supabase/db_types.ts` — copy
 it over after regenerating. See README.md "Local development > Database".
+
+## Agent skills
+
+### Issue tracker
+
+Issues and PRDs are tracked in GitHub Issues for
+`TrafegoPagoVSMoraes/open-bsp-api`. See `docs/agents/issue-tracker.md`.
+
+### Domain docs
+
+This repository uses a multi-context layout for messaging, tracking, and the
+plugin. See `docs/agents/domain.md` and `CONTEXT-MAP.md`.

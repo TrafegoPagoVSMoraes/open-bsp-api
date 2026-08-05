@@ -22,3 +22,21 @@ create type public.webhook_table as enum (
 );
 
 create type public.role as enum ('owner', 'admin', 'member');
+
+create type public.tracking_event_type as enum (
+  'link_open',
+  'page_view',
+  'click',
+  'form_start',
+  'form_submit',
+  'conversion',
+  'custom'
+);
+
+create type public.tracking_classification as enum (
+  'human_candidate',
+  'bot',
+  'preview',
+  'prefetch',
+  'unknown'
+);

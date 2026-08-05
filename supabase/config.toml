@@ -96,3 +96,18 @@ entrypoint = "./functions/storage-gc/index.ts"
 verify_jwt = false
 import_map = "./functions/deno.json"
 entrypoint = "./functions/whatsapp-click-tracker/index.ts"
+
+[functions.tracking-redirect]
+verify_jwt = false
+import_map = "./functions/deno.json"
+entrypoint = "./functions/tracking-redirect/index.ts"
+
+[functions.tracking-events]
+verify_jwt = false
+import_map = "./functions/deno.json"
+entrypoint = "./functions/tracking-events/index.ts"
+
+[functions.tracking-management]
+verify_jwt = true
+import_map = "./functions/deno.json"
+entrypoint = "./functions/tracking-management/index.ts"
