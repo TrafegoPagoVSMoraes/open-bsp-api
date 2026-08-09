@@ -566,6 +566,9 @@ async function createCampaign(service: any, body: JsonObject, test: boolean) {
 Deno.serve(async (request) => {
   if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: JSON_HEADERS });
   if (request.method !== "POST") return json({ error: "method_not_allowed" }, 405);
+  if (!request.headers.get("authorization")) {
+    return json({ error: "unauthorized" }, 401);
+  }
   try {
     const body = await request.json() as JsonObject;
     const action = String(body.action ?? "");
