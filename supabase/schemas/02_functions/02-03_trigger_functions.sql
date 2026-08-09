@@ -413,3 +413,50 @@ begin
   return new;
 end;
 $$;
+create function public.normalize_contact_name(value text) returns text
+language sql
+immutable
+set search_path to ''
+as $$
+  select case
+    when value is null then null
+    else (
+      select nullif(
+        string_agg(
+          case
+            when word_number > 1
+              and lower(word) in (
+                'a', 'as', 'e', 'o', 'os',
+                'da', 'das', 'de', 'do', 'dos'
+              )
+            then lower(word)
+            else upper(left(word, 1)) || lower(substr(word, 2))
+          end,
+          ' ' order by word_number
+        ),
+        ''
+      )
+      from regexp_split_to_table(
+        btrim(regexp_replace(value, '\\s+', ' ', 'g')),
+        ' '
+      ) with ordinality as parts(word, word_number)
+    )
+  end;
+$$;
+
+create function public.normalize_contact_fields() returns trigger
+language plpgsql
+set search_path to ''
+as $$
+begin
+  if tg_op = 'INSERT' or new.name is distinct from old.name then
+    new.name := public.normalize_contact_name(new.name);
+  end if;
+
+  if tg_op = 'INSERT' or new.email is distinct from old.email then
+    new.email := nullif(lower(btrim(new.email)), '');
+  end if;
+
+  return new;
+end;
+$$;

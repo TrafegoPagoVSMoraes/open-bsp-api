@@ -111,3 +111,13 @@ entrypoint = "./functions/tracking-events/index.ts"
 verify_jwt = true
 import_map = "./functions/deno.json"
 entrypoint = "./functions/tracking-management/index.ts"
+
+[functions.campaign-management]
+verify_jwt = false
+import_map = "./functions/deno.json"
+entrypoint = "./functions/campaign-management/index.ts"
+
+[functions.campaign-worker]
+verify_jwt = false
+import_map = "./functions/deno.json"
+entrypoint = "./functions/campaign-worker/index.ts"
