@@ -33,6 +33,12 @@ begin
     _organization_id, 'whatsapp', '5516988888888', 'active', _contact_id
   );
 
+  insert into public.contacts_addresses (
+    organization_id, service, address, status
+  ) values (
+    _organization_id, 'whatsapp', '5516966666666', 'active'
+  );
+
   insert into public.contact_opt_outs (
     organization_id, service, organization_address, contact_address
   ) values (
@@ -48,6 +54,28 @@ begin
       and t.system_key = 'opt_out'
   ) then
     raise exception 'opt-out system tag was not assigned';
+  end if;
+
+  insert into public.contact_opt_outs (
+    organization_id, service, organization_address, contact_address
+  ) values (
+    _organization_id, 'whatsapp', '5516999999999', '5516966666666'
+  );
+
+  if not exists (
+    select 1
+    from public.contacts_addresses ca
+    join public.contact_tags ct
+      on ct.organization_id = ca.organization_id
+      and ct.contact_id = ca.contact_id
+    join public.tags t on t.id = ct.tag_id
+    where ca.organization_id = _organization_id
+      and ca.service = 'whatsapp'
+      and ca.address = '5516966666666'
+      and ca.contact_id is not null
+      and t.system_key = 'opt_out'
+  ) then
+    raise exception 'unlinked opt-out was not materialized and tagged';
   end if;
 
   insert into public.campaigns (

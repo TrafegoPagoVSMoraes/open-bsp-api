@@ -87,6 +87,7 @@ set search_path to ''
 as $$
 declare
   linked_contact_id uuid;
+  created_contact_id uuid;
   target_organization_id uuid;
   target_service public.service;
   target_contact_address text;
@@ -95,17 +96,57 @@ begin
     target_organization_id := new.organization_id;
     target_service := new.service;
     target_contact_address := new.contact_address;
+
+    insert into public.contacts_addresses (
+      organization_id, service, address, status, extra
+    ) values (
+      target_organization_id, target_service, target_contact_address,
+      'active', '{"source":"opt_out"}'::jsonb
+    ) on conflict (organization_id, service, address) do nothing;
+
+    select ca.contact_id into linked_contact_id
+    from public.contacts_addresses ca
+    where ca.organization_id = target_organization_id
+      and ca.service = target_service
+      and ca.address = target_contact_address
+    for update;
+
+    if linked_contact_id is null then
+      insert into public.contacts (organization_id, name, extra)
+      values (
+        target_organization_id,
+        null,
+        jsonb_build_object('source', 'opt_out', 'contact_address', target_contact_address)
+      ) returning id into created_contact_id;
+
+      update public.contacts_addresses
+      set contact_id = created_contact_id
+      where organization_id = target_organization_id
+        and service = target_service
+        and address = target_contact_address
+        and contact_id is null
+      returning contact_id into linked_contact_id;
+
+      if linked_contact_id is null then
+        delete from public.contacts where id = created_contact_id;
+        select ca.contact_id into linked_contact_id
+        from public.contacts_addresses ca
+        where ca.organization_id = target_organization_id
+          and ca.service = target_service
+          and ca.address = target_contact_address;
+      end if;
+    end if;
   else
     target_organization_id := old.organization_id;
     target_service := old.service;
     target_contact_address := old.contact_address;
-  end if;
 
-  select ca.contact_id into linked_contact_id
-  from public.contacts_addresses ca
-  where ca.organization_id = target_organization_id
-    and ca.service = target_service
-    and ca.address = target_contact_address;
+    select ca.contact_id into linked_contact_id
+    from public.contacts_addresses ca
+    where ca.organization_id = target_organization_id
+      and ca.service = target_service
+      and ca.address = target_contact_address;
+  end if;
 
   perform public.sync_contact_opt_out_tag(
     target_organization_id, linked_contact_id
