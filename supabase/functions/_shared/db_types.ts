@@ -661,6 +661,296 @@ export type Database = {
           },
         ]
       }
+      campaign_recipients: {
+        Row: {
+          campaign_id: string
+          claimed_at: string | null
+          created_at: string
+          display_name: string | null
+          error_code: string | null
+          id: string
+          message_id: string
+          organization_id: string
+          phone: string
+          status: string
+          submitted_at: string | null
+          tracking_link_id: string | null
+          updated_at: string
+          variables: Json
+        }
+        Insert: {
+          campaign_id: string
+          claimed_at?: string | null
+          created_at?: string
+          display_name?: string | null
+          error_code?: string | null
+          id?: string
+          message_id?: string
+          organization_id: string
+          phone: string
+          status?: string
+          submitted_at?: string | null
+          tracking_link_id?: string | null
+          updated_at?: string
+          variables?: Json
+        }
+        Update: {
+          campaign_id?: string
+          claimed_at?: string | null
+          created_at?: string
+          display_name?: string | null
+          error_code?: string | null
+          id?: string
+          message_id?: string
+          organization_id?: string
+          phone?: string
+          status?: string
+          submitted_at?: string | null
+          tracking_link_id?: string | null
+          updated_at?: string
+          variables?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_recipients_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_recipients_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_recipients_tracking_link_id_fkey"
+            columns: ["tracking_link_id"]
+            isOneToOne: false
+            referencedRelation: "tracking_links"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      campaigns: {
+        Row: {
+          audience_excluded_tag_ids: string[]
+          audience_materialized_at: string | null
+          audience_tag_ids: string[]
+          audience_type: string
+          cancel_requested_at: string | null
+          completed_at: string | null
+          created_at: string
+          id: string
+          is_test: boolean
+          name: string
+          organization_address: string
+          organization_id: string
+          project_id: string | null
+          scheduled_at: string | null
+          started_at: string | null
+          status: string
+          template_category: string
+          template_id: string
+          template_language: string
+          template_name: string
+          template_payload: Json
+          template_snapshot: Json
+          template_status: string
+          total_cap: number
+          tracking_destination_url: string | null
+          tracking_project_id: string | null
+          updated_at: string
+          variable_mapping: Json
+        }
+        Insert: {
+          audience_excluded_tag_ids?: string[]
+          audience_materialized_at?: string | null
+          audience_tag_ids?: string[]
+          audience_type?: string
+          cancel_requested_at?: string | null
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          is_test?: boolean
+          name: string
+          organization_address: string
+          organization_id: string
+          project_id?: string | null
+          scheduled_at?: string | null
+          started_at?: string | null
+          status?: string
+          template_category: string
+          template_id: string
+          template_language: string
+          template_name: string
+          template_payload: Json
+          template_snapshot: Json
+          template_status: string
+          total_cap: number
+          tracking_destination_url?: string | null
+          tracking_project_id?: string | null
+          updated_at?: string
+          variable_mapping?: Json
+        }
+        Update: {
+          audience_excluded_tag_ids?: string[]
+          audience_materialized_at?: string | null
+          audience_tag_ids?: string[]
+          audience_type?: string
+          cancel_requested_at?: string | null
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          is_test?: boolean
+          name?: string
+          organization_address?: string
+          organization_id?: string
+          project_id?: string | null
+          scheduled_at?: string | null
+          started_at?: string | null
+          status?: string
+          template_category?: string
+          template_id?: string
+          template_language?: string
+          template_name?: string
+          template_payload?: Json
+          template_snapshot?: Json
+          template_status?: string
+          total_cap?: number
+          tracking_destination_url?: string | null
+          tracking_project_id?: string | null
+          updated_at?: string
+          variable_mapping?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaigns_org_address_fkey"
+            columns: ["organization_id", "organization_address"]
+            isOneToOne: false
+            referencedRelation: "organizations_addresses"
+            referencedColumns: ["organization_id", "address"]
+          },
+          {
+            foreignKeyName: "campaigns_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaigns_project_fkey"
+            columns: ["organization_id", "project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["organization_id", "id"]
+          },
+          {
+            foreignKeyName: "campaigns_tracking_project_id_fkey"
+            columns: ["tracking_project_id"]
+            isOneToOne: false
+            referencedRelation: "tracking_projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contact_opt_outs: {
+        Row: {
+          contact_address: string
+          opted_out_at: string
+          organization_address: string
+          organization_id: string
+          service: Database["public"]["Enums"]["service"]
+          source_message_id: string | null
+        }
+        Insert: {
+          contact_address: string
+          opted_out_at?: string
+          organization_address: string
+          organization_id: string
+          service: Database["public"]["Enums"]["service"]
+          source_message_id?: string | null
+        }
+        Update: {
+          contact_address?: string
+          opted_out_at?: string
+          organization_address?: string
+          organization_id?: string
+          service?: Database["public"]["Enums"]["service"]
+          source_message_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contact_opt_outs_contact_address_fkey"
+            columns: ["organization_id", "service", "contact_address"]
+            isOneToOne: false
+            referencedRelation: "contacts_addresses"
+            referencedColumns: ["organization_id", "service", "address"]
+          },
+          {
+            foreignKeyName: "contact_opt_outs_organization_address_fkey"
+            columns: ["organization_id", "organization_address"]
+            isOneToOne: false
+            referencedRelation: "organizations_addresses"
+            referencedColumns: ["organization_id", "address"]
+          },
+          {
+            foreignKeyName: "contact_opt_outs_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contact_opt_outs_source_message_id_fkey"
+            columns: ["source_message_id"]
+            isOneToOne: false
+            referencedRelation: "messages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contact_tags: {
+        Row: {
+          contact_id: string
+          created_at: string
+          organization_id: string
+          source: string
+          tag_id: string
+        }
+        Insert: {
+          contact_id: string
+          created_at?: string
+          organization_id: string
+          source?: string
+          tag_id: string
+        }
+        Update: {
+          contact_id?: string
+          created_at?: string
+          organization_id?: string
+          source?: string
+          tag_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contact_tags_contact_fkey"
+            columns: ["organization_id", "contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["organization_id", "id"]
+          },
+          {
+            foreignKeyName: "contact_tags_tag_fkey"
+            columns: ["organization_id", "tag_id"]
+            isOneToOne: false
+            referencedRelation: "tags"
+            referencedColumns: ["organization_id", "id"]
+          },
+        ]
+      }
       contacts: {
         Row: {
           created_at: string
@@ -878,6 +1168,7 @@ export type Database = {
           id: string
           organization_address: string
           organization_id: string
+          project_id: string | null
           service: Database["public"]["Enums"]["service"]
           status: Json
           thread_id: string | null
@@ -896,6 +1187,7 @@ export type Database = {
           id?: string
           organization_address: string
           organization_id: string
+          project_id?: string | null
           service: Database["public"]["Enums"]["service"]
           status?: Json
           thread_id?: string | null
@@ -914,6 +1206,7 @@ export type Database = {
           id?: string
           organization_address?: string
           organization_id?: string
+          project_id?: string | null
           service?: Database["public"]["Enums"]["service"]
           status?: Json
           thread_id?: string | null
@@ -941,6 +1234,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "organizations"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "messages_project_fkey"
+            columns: ["organization_id", "project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["organization_id", "id"]
           },
         ]
       }
@@ -1053,6 +1353,341 @@ export type Database = {
           },
         ]
       }
+      project_contact_origins: {
+        Row: {
+          contact_id: string
+          created_at: string
+          organization_id: string
+          project_id: string
+          source: string
+          source_key: string
+        }
+        Insert: {
+          contact_id: string
+          created_at?: string
+          organization_id: string
+          project_id: string
+          source: string
+          source_key?: string
+        }
+        Update: {
+          contact_id?: string
+          created_at?: string
+          organization_id?: string
+          project_id?: string
+          source?: string
+          source_key?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_contact_origins_organization_id_project_id_contact_fkey"
+            columns: ["organization_id", "project_id", "contact_id"]
+            isOneToOne: false
+            referencedRelation: "project_contacts"
+            referencedColumns: ["organization_id", "project_id", "contact_id"]
+          },
+        ]
+      }
+      project_contacts: {
+        Row: {
+          contact_id: string
+          created_at: string
+          organization_id: string
+          project_id: string
+          source: string
+          updated_at: string
+        }
+        Insert: {
+          contact_id: string
+          created_at?: string
+          organization_id: string
+          project_id: string
+          source?: string
+          updated_at?: string
+        }
+        Update: {
+          contact_id?: string
+          created_at?: string
+          organization_id?: string
+          project_id?: string
+          source?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_contacts_organization_id_contact_id_fkey"
+            columns: ["organization_id", "contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["organization_id", "id"]
+          },
+          {
+            foreignKeyName: "project_contacts_organization_id_project_id_fkey"
+            columns: ["organization_id", "project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["organization_id", "id"]
+          },
+        ]
+      }
+      project_conversations: {
+        Row: {
+          conversation_id: string
+          created_at: string
+          organization_id: string
+          project_id: string
+          source: string
+        }
+        Insert: {
+          conversation_id: string
+          created_at?: string
+          organization_id: string
+          project_id: string
+          source?: string
+        }
+        Update: {
+          conversation_id?: string
+          created_at?: string
+          organization_id?: string
+          project_id?: string
+          source?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_conversations_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_conversations_organization_id_project_id_fkey"
+            columns: ["organization_id", "project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["organization_id", "id"]
+          },
+        ]
+      }
+      project_import_aliases: {
+        Row: {
+          alias: string
+          created_at: string
+          id: string
+          organization_id: string
+          project_id: string
+          source: string | null
+          updated_at: string
+        }
+        Insert: {
+          alias: string
+          created_at?: string
+          id?: string
+          organization_id: string
+          project_id: string
+          source?: string | null
+          updated_at?: string
+        }
+        Update: {
+          alias?: string
+          created_at?: string
+          id?: string
+          organization_id?: string
+          project_id?: string
+          source?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_import_aliases_organization_id_project_id_fkey"
+            columns: ["organization_id", "project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["organization_id", "id"]
+          },
+        ]
+      }
+      project_memberships: {
+        Row: {
+          agent_id: string
+          created_at: string
+          organization_id: string
+          project_id: string
+          role: string
+          updated_at: string
+        }
+        Insert: {
+          agent_id: string
+          created_at?: string
+          organization_id: string
+          project_id: string
+          role?: string
+          updated_at?: string
+        }
+        Update: {
+          agent_id?: string
+          created_at?: string
+          organization_id?: string
+          project_id?: string
+          role?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_memberships_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_memberships_organization_id_project_id_fkey"
+            columns: ["organization_id", "project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["organization_id", "id"]
+          },
+        ]
+      }
+      project_performance_daily: {
+        Row: {
+          created_at: string
+          extra: Json
+          group_joins: number
+          id: string
+          leads: number
+          metric_date: string
+          notes: string | null
+          organization_id: string
+          project_id: string
+          reach: number
+          spend: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          extra?: Json
+          group_joins?: number
+          id?: string
+          leads?: number
+          metric_date: string
+          notes?: string | null
+          organization_id: string
+          project_id: string
+          reach?: number
+          spend?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          extra?: Json
+          group_joins?: number
+          id?: string
+          leads?: number
+          metric_date?: string
+          notes?: string | null
+          organization_id?: string
+          project_id?: string
+          reach?: number
+          spend?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_performance_daily_organization_id_project_id_fkey"
+            columns: ["organization_id", "project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["organization_id", "id"]
+          },
+        ]
+      }
+      project_tags: {
+        Row: {
+          created_at: string
+          organization_id: string
+          project_id: string
+          tag_id: string
+        }
+        Insert: {
+          created_at?: string
+          organization_id: string
+          project_id: string
+          tag_id: string
+        }
+        Update: {
+          created_at?: string
+          organization_id?: string
+          project_id?: string
+          tag_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_tags_organization_id_project_id_fkey"
+            columns: ["organization_id", "project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["organization_id", "id"]
+          },
+          {
+            foreignKeyName: "project_tags_organization_id_tag_id_fkey"
+            columns: ["organization_id", "tag_id"]
+            isOneToOne: false
+            referencedRelation: "tags"
+            referencedColumns: ["organization_id", "id"]
+          },
+        ]
+      }
+      projects: {
+        Row: {
+          created_at: string
+          currency: string
+          description: string | null
+          extra: Json
+          id: string
+          name: string
+          organization_id: string
+          planned_budget: number
+          slug: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          currency?: string
+          description?: string | null
+          extra?: Json
+          id?: string
+          name: string
+          organization_id: string
+          planned_budget?: number
+          slug: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          currency?: string
+          description?: string | null
+          extra?: Json
+          id?: string
+          name?: string
+          organization_id?: string
+          planned_budget?: number
+          slug?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "projects_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       quick_replies: {
         Row: {
           content: string
@@ -1081,6 +1716,53 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "quick_replies_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tags: {
+        Row: {
+          color: string
+          created_at: string
+          description: string | null
+          id: string
+          is_system: boolean
+          name: string
+          organization_id: string
+          slug: string
+          system_key: string | null
+          updated_at: string
+        }
+        Insert: {
+          color?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_system?: boolean
+          name: string
+          organization_id: string
+          slug: string
+          system_key?: string | null
+          updated_at?: string
+        }
+        Update: {
+          color?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_system?: boolean
+          name?: string
+          organization_id?: string
+          slug?: string
+          system_key?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tags_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
@@ -1522,6 +2204,15 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      add_project_contact_origins: {
+        Args: {
+          p_contact_ids: string[]
+          p_organization_id: string
+          p_project_id: string
+          p_source?: string
+        }
+        Returns: number
+      }
       agent_update_by_owner_rules: {
         Args: {
           p_ai: boolean
@@ -1531,6 +2222,67 @@ export type Database = {
           p_user_id: string
         }
         Returns: boolean
+      }
+      assign_message_project: {
+        Args: { p_message_id: string; p_project_id: string }
+        Returns: undefined
+      }
+      can_access_contact: {
+        Args: { p_contact_id: string; p_organization_id: string }
+        Returns: boolean
+      }
+      can_access_contact_address: {
+        Args: {
+          p_address: string
+          p_organization_id: string
+          p_service: Database["public"]["Enums"]["service"]
+        }
+        Returns: boolean
+      }
+      can_access_conversation: {
+        Args: { p_conversation_id: string; p_organization_id: string }
+        Returns: boolean
+      }
+      can_access_project: {
+        Args: { p_organization_id: string; p_project_id: string }
+        Returns: boolean
+      }
+      can_administer_projects: {
+        Args: { p_organization_id: string }
+        Returns: boolean
+      }
+      can_send_project_message: {
+        Args: {
+          p_conversation_id: string
+          p_organization_id: string
+          p_project_id: string
+        }
+        Returns: boolean
+      }
+      claim_campaign_recipient_batch: {
+        Args: { p_limit?: number }
+        Returns: {
+          campaign_id: string
+          claimed_at: string | null
+          created_at: string
+          display_name: string | null
+          error_code: string | null
+          id: string
+          message_id: string
+          organization_id: string
+          phone: string
+          status: string
+          submitted_at: string | null
+          tracking_link_id: string | null
+          updated_at: string
+          variables: Json
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "campaign_recipients"
+          isOneToOne: false
+          isSetofReturn: true
+        }
       }
       cleanup_tracking_data: { Args: never; Returns: Json }
       contact_address_update_rules: {
@@ -1576,11 +2328,102 @@ export type Database = {
           tracking_session_id: string
         }[]
       }
+      ensure_system_tag: {
+        Args: {
+          target_color: string
+          target_name: string
+          target_organization_id: string
+          target_system_key: string
+        }
+        Returns: string
+      }
+      finish_campaigns: { Args: never; Returns: undefined }
       get_authorized_orgs: {
         Args: { role?: Database["public"]["Enums"]["role"] }
         Returns: string[]
       }
+      get_campaign_summaries: {
+        Args: { p_campaign_id?: string; p_organization_id: string }
+        Returns: {
+          accepted: number
+          created_at: string
+          delivered: number
+          failed: number
+          id: string
+          name: string
+          pending: number
+          read: number
+          sent: number
+          skipped: number
+          status: string
+          total: number
+        }[]
+      }
+      get_current_expert_project_ids: {
+        Args: { p_organization_id: string }
+        Returns: {
+          project_id: string
+        }[]
+      }
+      get_project_campaign_summaries: {
+        Args: { p_organization_id: string; p_project_id: string }
+        Returns: {
+          accepted: number
+          created_at: string
+          delivered: number
+          failed: number
+          id: string
+          name: string
+          pending: number
+          read: number
+          sent: number
+          skipped: number
+          status: string
+          total: number
+        }[]
+      }
+      get_tag_report: {
+        Args: { p_organization_id: string }
+        Returns: {
+          contact_count: number
+          opt_out_count: number
+          tag_color: string
+          tag_id: string
+          tag_name: string
+        }[]
+      }
+      get_tracking_activity_private: {
+        Args: {
+          p_from?: string
+          p_limit?: number
+          p_offset?: number
+          p_organization_id: string
+          p_project_id?: string
+          p_to?: string
+        }
+        Returns: {
+          contact_address: string
+          contact_address_masked: string
+          element_id: string
+          event_id: string
+          event_name: string
+          event_type: Database["public"]["Enums"]["tracking_event_type"]
+          message_id: string
+          occurred_at: string
+          page_path: string
+          project_id: string
+        }[]
+      }
       get_tracking_dashboard: {
+        Args: {
+          p_from?: string
+          p_organization_id: string
+          p_project_id?: string
+          p_to?: string
+        }
+        Returns: Json
+      }
+      get_tracking_dashboard_private: {
         Args: {
           p_from?: string
           p_organization_id: string
@@ -1599,6 +2442,20 @@ export type Database = {
         }
         Returns: Json
       }
+      insert_campaign_recipients: {
+        Args: {
+          p_campaign_id: string
+          p_organization_id: string
+          p_recipients: Json
+        }
+        Returns: number
+      }
+      is_project_expert: {
+        Args: { p_organization_id: string }
+        Returns: boolean
+      }
+      mark_stale_campaign_claims: { Args: never; Returns: number }
+      materialize_due_tag_campaigns: { Args: never; Returns: number }
       member_self_update_rules: {
         Args: {
           p_ai: boolean
@@ -1613,10 +2470,12 @@ export type Database = {
         Args: { object: Json; path: string[]; target: Json }
         Returns: Json
       }
+      normalize_contact_name: { Args: { value: string }; Returns: string }
       org_update_by_admin_rules: {
         Args: { p_id: string; p_name: string }
         Returns: boolean
       }
+      promote_due_campaigns: { Args: never; Returns: number }
       record_tracking_open: {
         Args: {
           p_accept_language?: string
@@ -1659,6 +2518,15 @@ export type Database = {
           tracking_session_id: string
         }[]
       }
+      resolve_campaign_contact_variables: {
+        Args: { p_mapping: Json; p_name: string }
+        Returns: Json
+      }
+      sync_contact_opt_out_tag: {
+        Args: { target_contact_id: string; target_organization_id: string }
+        Returns: undefined
+      }
+      whatsapp_consent_command: { Args: { content: Json }; Returns: string }
     }
     Enums: {
       direction: "incoming" | "outgoing" | "internal"

@@ -10,7 +10,8 @@ const DEFAULT_ACCESS_TOKEN =
   Deno.env.get("META_SYSTEM_USER_ACCESS_TOKEN")?.trim() || "";
 const JSON_HEADERS = {
   "access-control-allow-origin": "*",
-  "access-control-allow-headers": "authorization, content-type, x-client-info",
+  "access-control-allow-headers":
+    "authorization, content-type, x-client-info, apikey",
   "access-control-allow-methods": "POST, OPTIONS",
   "content-type": "application/json",
 };
@@ -33,6 +34,7 @@ type NormalizedRecipient = {
   source: JsonObject;
 };
 type VariableMapping = Record<string, { source?: unknown; constant?: unknown }>;
+type AuthorizationScope = { expertProjectIds: Set<string> | null };
 type MetaTemplateComponent = {
   type?: unknown;
   text?: unknown;
@@ -63,9 +65,19 @@ function normalizeName(value: unknown): string | null {
   ).join(" ");
 }
 
+function normalizeFirstName(value: unknown): string | null {
+  const normalized = normalizeName(value);
+  // The current WhatsApp template header rejects translated values above 14
+  // characters. Keeping this bounded prevents a single imported full name
+  // from turning an otherwise valid campaign recipient into a Meta failure.
+  return normalized ? normalized.split(" ")[0].slice(0, 14) : null;
+}
+
 function normalizeRecipients(input: unknown) {
   if (!Array.isArray(input)) throw new Error("invalid_recipients");
-  if (input.length > MAX_RECIPIENTS) throw new Error("recipient_limit_exceeded");
+  if (input.length > MAX_RECIPIENTS) {
+    throw new Error("recipient_limit_exceeded");
+  }
   const unique = new Map<string, NormalizedRecipient>();
   let invalid = 0;
   let duplicates = 0;
@@ -100,15 +112,22 @@ function normalizeRecipients(input: unknown) {
         ...supplied,
         email: raw.email ?? source.email ?? null,
         nome_completo: displayName,
-        primeiro_nome: normalizeName(raw.first_name) ?? displayName?.split(" ")[0] ?? null,
+        primeiro_nome: normalizeFirstName(raw.first_name) ??
+          normalizeFirstName(displayName),
       },
     });
   }
   return { recipients: [...unique.values()], invalid, duplicates };
 }
 
-async function authorize(request: Request, organizationId: string) {
-  const token = request.headers.get("authorization")?.replace(/^Bearer\s+/iu, "").trim();
+async function authorize(
+  request: Request,
+  organizationId: string,
+): Promise<AuthorizationScope> {
+  const token = request.headers.get("authorization")?.replace(
+    /^Bearer\s+/iu,
+    "",
+  ).trim();
   if (!token) throw new Error("unauthorized");
   if (token.startsWith("eyJ")) {
     const client = createClient(request);
@@ -117,15 +136,41 @@ async function authorize(request: Request, organizationId: string) {
     const { data, error: orgError } = await client.rpc("get_authorized_orgs", {
       role: "member",
     });
-    if (orgError || !(data ?? []).includes(organizationId)) throw new Error("forbidden");
-    return;
+    if (orgError || !(data ?? []).includes(organizationId)) {
+      throw new Error("forbidden");
+    }
+    const { data: isExpert, error: expertError } = await client.rpc(
+      "is_project_expert",
+      { p_organization_id: organizationId },
+    );
+    if (expertError) throw new Error("forbidden");
+    if (isExpert) {
+      const { data: memberships, error: membershipError } = await client
+        .rpc("get_current_expert_project_ids", {
+          p_organization_id: organizationId,
+        });
+      if (membershipError) throw new Error("forbidden");
+      return {
+        expertProjectIds: new Set(
+          (memberships ?? []).map((item: { project_id: string }) =>
+            item.project_id
+          ),
+        ),
+      };
+    }
+    return { expertProjectIds: null };
   }
   const client = createApiClient(request);
-  const { data, error } = await client.from("api_keys").select("organization_id,role")
+  const { data, error } = await client.from("api_keys").select(
+    "organization_id,role",
+  )
     .eq("key", token).maybeSingle();
   if (error || !data) throw new Error("unauthorized");
-  if (data.organization_id !== organizationId ||
-    !["member", "admin", "owner"].includes(data.role)) throw new Error("forbidden");
+  if (
+    data.organization_id !== organizationId ||
+    !["member", "admin", "owner"].includes(data.role)
+  ) throw new Error("forbidden");
+  return { expertProjectIds: null };
 }
 
 async function getTemplateSnapshot(
@@ -142,16 +187,26 @@ async function getTemplateSnapshot(
   if (error || !account) throw new Error("whatsapp_account_not_found");
   const accessToken = account.access_token?.trim() || DEFAULT_ACCESS_TOKEN;
   if (!accessToken) throw new Error("whatsapp_credentials_missing");
-  const url = new URL(`https://graph.facebook.com/${API_VERSION}/${templateId}`);
+  const url = new URL(
+    `https://graph.facebook.com/${API_VERSION}/${templateId}`,
+  );
   url.searchParams.set("fields", "id,name,status,category,language,components");
-  const response = await fetch(url, { headers: { authorization: `Bearer ${accessToken}` } });
-  if (!response.ok) throw new Error(`template_validation_failed_${response.status}`);
+  const response = await fetch(url, {
+    headers: { authorization: `Bearer ${accessToken}` },
+  });
+  if (!response.ok) {
+    throw new Error(`template_validation_failed_${response.status}`);
+  }
   const snapshot = await response.json() as JsonObject;
-  if (String(snapshot.id) !== templateId) throw new Error("template_identity_mismatch");
+  if (String(snapshot.id) !== templateId) {
+    throw new Error("template_identity_mismatch");
+  }
   if (snapshot.status !== "APPROVED" || snapshot.category !== "UTILITY") {
     throw new Error("template_must_be_approved_utility");
   }
-  if (!snapshot.name || !snapshot.language || !Array.isArray(snapshot.components)) {
+  if (
+    !snapshot.name || !snapshot.language || !Array.isArray(snapshot.components)
+  ) {
     throw new Error("invalid_template_snapshot");
   }
   return snapshot;
@@ -231,10 +286,13 @@ function resolveVariables(
     const source = String(rawRule?.source ?? "");
     let value: unknown;
     if (source === "constant") value = rawRule.constant;
-    else if (source === "first_name") value = recipient.source.primeiro_nome;
-    else if (source === "full_name") value = recipient.source.nome_completo;
-    else if (source.startsWith("column:")) value = recipient.source[source.slice(7)];
-    else throw new Error(`invalid_variable_mapping:${key}`);
+    else if (source === "first_name") {
+      value = recipient.source.primeiro_nome || "Você";
+    } else if (source === "full_name") {
+      value = recipient.source.nome_completo || "Você";
+    } else if (source.startsWith("column:")) {
+      value = recipient.source[source.slice(7)];
+    } else throw new Error(`invalid_variable_mapping:${key}`);
     if (value === undefined || value === null || String(value).trim() === "") {
       throw new Error(`missing_variable_value:${key}`);
     }
@@ -243,7 +301,9 @@ function resolveVariables(
   return variables;
 }
 
-async function pagedSelect(build: (from: number, to: number) => PromiseLike<any>) {
+async function pagedSelect(
+  build: (from: number, to: number) => PromiseLike<any>,
+) {
   const rows: any[] = [];
   for (let from = 0; from < MAX_RECIPIENTS; from += PAGE_SIZE) {
     const { data, error } = await build(from, from + PAGE_SIZE - 1);
@@ -259,60 +319,131 @@ async function optedOutPhones(
   organizationId: string,
   organizationAddress: string,
 ) {
-  const data = await pagedSelect((from, to) => service.from("contact_opt_outs")
-    .select("contact_address").eq("organization_id", organizationId)
-    .eq("organization_address", organizationAddress).eq("service", "whatsapp")
-    .range(from, to));
-  return new Set(data.map((item) => normalizePhone(item.contact_address)).filter(Boolean));
+  const data = await pagedSelect((from, to) =>
+    service.from("contact_opt_outs")
+      .select("contact_address").eq("organization_id", organizationId)
+      .eq("organization_address", organizationAddress).eq("service", "whatsapp")
+      .range(from, to)
+  );
+  return new Set(
+    data.map((item) => normalizePhone(item.contact_address)).filter(Boolean),
+  );
 }
 
 async function availableTags(service: any, organizationId: string) {
-  const tags = await pagedSelect((from, to) => service.from("tags")
-    .select("id,name,color").eq("organization_id", organizationId).order("name")
-    .range(from, to));
-  const memberships = await pagedSelect((from, to) => service.from("contact_tags")
-    .select("tag_id").eq("organization_id", organizationId).range(from, to));
+  const tags = await pagedSelect((from, to) =>
+    service.from("tags")
+      .select("id,name,color").eq("organization_id", organizationId).order(
+        "name",
+      )
+      .range(from, to)
+  );
+  const memberships = await pagedSelect((from, to) =>
+    service.from("contact_tags")
+      .select("tag_id").eq("organization_id", organizationId).range(from, to)
+  );
   const counts = new Map<string, number>();
-  for (const item of memberships) counts.set(item.tag_id, (counts.get(item.tag_id) ?? 0) + 1);
-  return tags.map((tag) => ({ ...tag, contacts_count: counts.get(tag.id) ?? 0 }));
+  for (const item of memberships) {
+    counts.set(item.tag_id, (counts.get(item.tag_id) ?? 0) + 1);
+  }
+  return tags.map((tag) => ({
+    ...tag,
+    contacts_count: counts.get(tag.id) ?? 0,
+  }));
 }
 
-async function recipientsForTags(service: any, organizationId: string, rawTagIds: unknown) {
-  const tagIds = Array.isArray(rawTagIds) ? [...new Set(rawTagIds.map(String).filter(Boolean))] : [];
+async function recipientsForTags(
+  service: any,
+  organizationId: string,
+  rawTagIds: unknown,
+  rawExcludedTagIds: unknown = [],
+) {
+  const tagIds = Array.isArray(rawTagIds)
+    ? [...new Set(rawTagIds.map(String).filter(Boolean))]
+    : [];
+  const excludedTagIds = Array.isArray(rawExcludedTagIds)
+    ? [...new Set(rawExcludedTagIds.map(String).filter(Boolean))]
+    : [];
+  const requestedTagIds = [...new Set([...tagIds, ...excludedTagIds])];
   let contactIds: string[] | null = null;
+  if (requestedTagIds.length) {
+    const { data: ownedTags, error: tagsError } = await service.from("tags")
+      .select("id")
+      .eq("organization_id", organizationId).in("id", requestedTagIds);
+    if (tagsError || (ownedTags ?? []).length !== requestedTagIds.length) {
+      throw new Error("invalid_tag_selection");
+    }
+  }
   if (tagIds.length) {
-    const { data: ownedTags, error: tagsError } = await service.from("tags").select("id")
-      .eq("organization_id", organizationId).in("id", tagIds);
-    if (tagsError || (ownedTags ?? []).length !== tagIds.length) throw new Error("invalid_tag_selection");
-    const memberships = await pagedSelect((from, to) => service.from("contact_tags")
-      .select("contact_id").eq("organization_id", organizationId).in("tag_id", tagIds)
-      .range(from, to));
+    const memberships = await pagedSelect((from, to) =>
+      service.from("contact_tags")
+        .select("contact_id").eq("organization_id", organizationId).in(
+          "tag_id",
+          tagIds,
+        )
+        .range(from, to)
+    );
     contactIds = [...new Set(memberships.map((item) => item.contact_id))];
-    if (!contactIds.length) return { recipients: [], invalid: 0, duplicates: 0 };
+    if (!contactIds.length) {
+      return { recipients: [], invalid: 0, duplicates: 0 };
+    }
   }
 
   const addresses: any[] = [];
   if (contactIds) {
     for (let offset = 0; offset < contactIds.length; offset += 500) {
       const chunk = contactIds.slice(offset, offset + 500);
-      const page = await pagedSelect((from, to) => service.from("contacts_addresses")
-        .select("address,contact_id,contacts!inner(name,email,extra)")
-        .eq("organization_id", organizationId).eq("service", "whatsapp")
-        .eq("status", "active").in("contact_id", chunk).range(from, to));
+      const page = await pagedSelect((from, to) =>
+        service.from("contacts_addresses")
+          .select("address,contact_id,contacts!inner(name,email,extra)")
+          .eq("organization_id", organizationId).eq("service", "whatsapp")
+          .eq("status", "active").in("contact_id", chunk).range(from, to)
+      );
       addresses.push(...page);
     }
   } else {
-    addresses.push(...await pagedSelect((from, to) => service.from("contacts_addresses")
-      .select("address,contact_id,contacts!inner(name,email,extra)")
-      .eq("organization_id", organizationId).eq("service", "whatsapp")
-      .eq("status", "active").not("contact_id", "is", null).range(from, to)));
+    addresses.push(
+      ...await pagedSelect((from, to) =>
+        service.from("contacts_addresses")
+          .select("address,contact_id,contacts!inner(name,email,extra)")
+          .eq("organization_id", organizationId).eq("service", "whatsapp")
+          .eq("status", "active").not("contact_id", "is", null).range(from, to)
+      ),
+    );
   }
-  return normalizeRecipients(addresses.map((row) => ({
+  let normalized = normalizeRecipients(addresses.map((row) => ({
     phone: row.address,
     name: row.contacts?.name,
     email: row.contacts?.email,
     source: row.contacts?.extra ?? {},
   })));
+  if (!excludedTagIds.length || !normalized.recipients.length) {
+    return normalized;
+  }
+  const excludedMemberships = await pagedSelect((from, to) =>
+    service.from("contact_tags")
+      .select("contact_id").eq("organization_id", organizationId).in(
+        "tag_id",
+        excludedTagIds,
+      )
+      .range(from, to)
+  );
+  const excludedContacts = new Set(
+    excludedMemberships.map((item) => item.contact_id),
+  );
+  const excludedPhones = new Set(
+    addresses
+      .filter((row) => excludedContacts.has(row.contact_id))
+      .map((row) => normalizePhone(row.address))
+      .filter(Boolean),
+  );
+  normalized = {
+    ...normalized,
+    recipients: normalized.recipients.filter((item) =>
+      !excludedPhones.has(item.phone)
+    ),
+  };
+  return normalized;
 }
 
 async function validateTracking(
@@ -320,7 +451,10 @@ async function validateTracking(
   organizationId: string,
   rawTracking: unknown,
 ) {
-  if (!rawTracking || typeof rawTracking !== "object" || Array.isArray(rawTracking)) return null;
+  if (
+    !rawTracking || typeof rawTracking !== "object" ||
+    Array.isArray(rawTracking)
+  ) return null;
   const tracking = rawTracking as JsonObject;
   const projectId = String(tracking.project_id ?? "").trim();
   const destinationUrl = String(tracking.destination_url ?? "").trim();
@@ -331,7 +465,9 @@ async function validateTracking(
   } catch {
     throw new Error("invalid_tracking_destination");
   }
-  if (url.protocol !== "https:") throw new Error("invalid_tracking_destination");
+  if (url.protocol !== "https:") {
+    throw new Error("invalid_tracking_destination");
+  }
   const { data: project, error } = await service.from("tracking_projects")
     .select("id,allowed_origins,status").eq("id", projectId)
     .eq("organization_id", organizationId).eq("status", "active").single();
@@ -372,28 +508,37 @@ async function persistImportedContacts(
       .in("address", phones);
     if (existingError) throw new Error("contact_import_lookup_failed");
     const byPhone = new Map<string, string | null>(
-      (existing ?? []).map((row: { address: string; contact_id: string | null }) => [
+      (existing ?? []).map((
+        row: { address: string; contact_id: string | null },
+      ) => [
         row.address,
         row.contact_id,
       ]),
     );
-    for (const contactId of byPhone.values()) if (contactId) linkedContactIds.add(contactId);
+    for (const contactId of byPhone.values()) {
+      if (contactId) linkedContactIds.add(contactId);
+    }
 
     const unlinked = chunk.filter((recipient) => !byPhone.get(recipient.phone));
     if (!unlinked.length) continue;
 
-    const missingAddresses = unlinked.filter((recipient) => !byPhone.has(recipient.phone));
+    const missingAddresses = unlinked.filter((recipient) =>
+      !byPhone.has(recipient.phone)
+    );
     if (missingAddresses.length) {
       const { error: addressError } = await service.from("contacts_addresses")
-        .upsert(missingAddresses.map((recipient) => ({
-          organization_id: organizationId,
-          service: "whatsapp",
-          address: recipient.phone,
-          status: "active",
-        })), {
-          onConflict: "organization_id,service,address",
-          ignoreDuplicates: true,
-        });
+        .upsert(
+          missingAddresses.map((recipient) => ({
+            organization_id: organizationId,
+            service: "whatsapp",
+            address: recipient.phone,
+            status: "active",
+          })),
+          {
+            onConflict: "organization_id,service,address",
+            ignoreDuplicates: true,
+          },
+        );
       if (addressError) throw new Error("contact_address_import_failed");
     }
 
@@ -422,8 +567,8 @@ async function persistImportedContacts(
         .select("contact_id").maybeSingle();
       if (linkError) throw new Error("contact_link_failed");
       if (linked?.contact_id) linkedContactIds.add(linked.contact_id);
-      else await service.from("contacts").delete().eq("id", contact.id)
-        .eq("organization_id", organizationId);
+      else {await service.from("contacts").delete().eq("id", contact.id)
+          .eq("organization_id", organizationId);}
     }));
 
     const { data: resolved, error: resolvedError } = await service
@@ -452,6 +597,7 @@ async function persistImportedContacts(
       if (error) throw new Error("contact_tag_import_failed");
     }
   }
+  return [...linkedContactIds];
 }
 
 async function previewAudience(service: any, body: JsonObject) {
@@ -460,19 +606,30 @@ async function previewAudience(service: any, body: JsonObject) {
     ? body.audience as JsonObject
     : null;
   const normalized = audience?.type === "tags"
-    ? await recipientsForTags(service, organizationId, audience.tag_ids)
+    ? await recipientsForTags(
+      service,
+      organizationId,
+      audience.tag_ids,
+      audience.exclude_tag_ids,
+    )
     : normalizeRecipients(body.records ?? audience?.records ?? []);
   const address = normalizePhone(body.organization_address);
   const suppressed = address
     ? await optedOutPhones(service, organizationId, address)
     : new Set<string>();
   return {
-    total: normalized.recipients.length + normalized.invalid + normalized.duplicates,
-    eligible: normalized.recipients.filter((item) => !suppressed.has(item.phone)).length,
+    total: normalized.recipients.length + normalized.invalid +
+      normalized.duplicates,
+    eligible:
+      normalized.recipients.filter((item) => !suppressed.has(item.phone))
+        .length,
     invalid: normalized.invalid,
     duplicates: normalized.duplicates,
-    opted_out: normalized.recipients.filter((item) => suppressed.has(item.phone)).length,
-    ...(body.include_available_tags ? { tags: await availableTags(service, organizationId) } : {}),
+    opted_out:
+      normalized.recipients.filter((item) => suppressed.has(item.phone)).length,
+    ...(body.include_available_tags
+      ? { tags: await availableTags(service, organizationId) }
+      : {}),
   };
 }
 
@@ -486,19 +643,74 @@ async function createCampaign(service: any, body: JsonObject, test: boolean) {
   const normalized = test
     ? normalizeRecipients([body.test_recipient])
     : audience?.type === "tags"
-    ? await recipientsForTags(service, organizationId, audience.tag_ids)
+    ? await recipientsForTags(
+      service,
+      organizationId,
+      audience.tag_ids,
+      audience.exclude_tag_ids,
+    )
     : normalizeRecipients(audience?.records ?? body.records ?? []);
-  const suppressed = await optedOutPhones(service, organizationId, organizationAddress);
-  const eligible = normalized.recipients.filter((item) => !suppressed.has(item.phone));
+  const projectId = body.project_id ? String(body.project_id) : null;
+  if (projectId && !test) {
+    const { data: project, error: projectError } = await service.from(
+      "projects",
+    )
+      .select("id").eq("organization_id", organizationId)
+      .eq("id", projectId).eq("status", "active").maybeSingle();
+    if (projectError || !project) throw new Error("invalid_project_id");
+    if (audience?.type === "tags") {
+      const tagIds = [
+        ...new Set(
+          (Array.isArray(audience.tag_ids) ? audience.tag_ids : []).map(String),
+        ),
+      ];
+      const { data: projectTags, error: tagError } = await service.from(
+        "project_tags",
+      )
+        .select("tag_id").eq("organization_id", organizationId)
+        .eq("project_id", projectId).in("tag_id", tagIds);
+      if (tagError || (projectTags ?? []).length !== tagIds.length) {
+        throw new Error("campaign_tags_not_linked_to_project");
+      }
+    }
+  }
+  const suppressed = await optedOutPhones(
+    service,
+    organizationId,
+    organizationAddress,
+  );
+  const eligible = normalized.recipients.filter((item) =>
+    !suppressed.has(item.phone)
+  );
   if (!eligible.length) throw new Error("no_eligible_recipients");
 
   if (!test && audience?.type === "import") {
-    await persistImportedContacts(
+    const importedContactIds = await persistImportedContacts(
       service,
       organizationId,
       normalized.recipients,
       audience.tag_ids,
     );
+    if (projectId && importedContactIds.length) {
+      for (
+        let offset = 0;
+        offset < importedContactIds.length;
+        offset += PAGE_SIZE
+      ) {
+        const { error: projectContactError } = await service.rpc(
+          "add_project_contact_origins",
+          {
+            p_organization_id: organizationId,
+            p_project_id: projectId,
+            p_contact_ids: importedContactIds.slice(offset, offset + PAGE_SIZE),
+            p_source: "import",
+          },
+        );
+        if (projectContactError) {
+          throw new Error("project_contact_import_failed");
+        }
+      }
+    }
   }
 
   const templateInput = body.template && typeof body.template === "object"
@@ -510,12 +722,17 @@ async function createCampaign(service: any, body: JsonObject, test: boolean) {
     organizationAddress,
     String(templateInput?.id ?? "").trim(),
   );
-  const mapping = body.variable_mapping && typeof body.variable_mapping === "object" &&
+  const mapping =
+    body.variable_mapping && typeof body.variable_mapping === "object" &&
       !Array.isArray(body.variable_mapping)
-    ? body.variable_mapping as VariableMapping
-    : {};
+      ? body.variable_mapping as VariableMapping
+      : {};
   const templatePayload = buildTemplatePayload(snapshot, mapping);
-  const tracking = await validateTracking(service, organizationId, body.tracking);
+  const tracking = await validateTracking(
+    service,
+    organizationId,
+    body.tracking,
+  );
   const recipientRows = eligible.map((item) => ({
     phone: item.phone,
     display_name: item.display_name,
@@ -525,7 +742,10 @@ async function createCampaign(service: any, body: JsonObject, test: boolean) {
   const { data: campaign, error } = await service.from("campaigns").insert({
     organization_id: organizationId,
     organization_address: organizationAddress,
-    name: test ? `Teste: ${String(snapshot.name)}` : String(body.name ?? snapshot.name).trim(),
+    project_id: test ? null : projectId,
+    name: test
+      ? `Teste: ${String(snapshot.name)}`
+      : String(body.name ?? snapshot.name).trim(),
     template_id: String(snapshot.id),
     template_name: String(snapshot.name),
     template_language: String(snapshot.language),
@@ -535,22 +755,42 @@ async function createCampaign(service: any, body: JsonObject, test: boolean) {
     template_payload: templatePayload,
     tracking_project_id: tracking?.project_id ?? null,
     tracking_destination_url: tracking?.destination_url ?? null,
+    audience_type: !test && audience?.type === "tags" ? "tags" : "explicit",
+    audience_tag_ids: !test && audience?.type === "tags"
+      ? [
+        ...new Set(
+          (Array.isArray(audience.tag_ids) ? audience.tag_ids : []).map(String),
+        ),
+      ]
+      : [],
+    audience_excluded_tag_ids: !test && audience?.type === "tags"
+      ? [
+        ...new Set((Array.isArray(audience.exclude_tag_ids)
+          ? audience.exclude_tag_ids
+          : []).map(String)),
+      ]
+      : [],
+    variable_mapping: mapping,
     total_cap: recipientRows.length,
     is_test: test,
   }).select("id,total_cap,status").single();
   if (error || !campaign) throw new Error("campaign_create_failed");
-  const { error: recipientError } = await service.rpc("insert_campaign_recipients", {
-    p_campaign_id: campaign.id,
-    p_organization_id: organizationId,
-    p_recipients: recipientRows,
-  });
+  const { error: recipientError } = await service.rpc(
+    "insert_campaign_recipients",
+    {
+      p_campaign_id: campaign.id,
+      p_organization_id: organizationId,
+      p_recipients: recipientRows,
+    },
+  );
   if (recipientError) {
     await service.from("campaigns").delete().eq("id", campaign.id);
     throw new Error("campaign_recipient_create_failed");
   }
   if (test) {
     const { error: startError } = await service.from("campaigns").update({
-      status: "running", started_at: new Date().toISOString(),
+      status: "running",
+      started_at: new Date().toISOString(),
     }).eq("id", campaign.id).eq("status", "draft");
     if (startError) throw new Error("campaign_start_failed");
   }
@@ -564,8 +804,12 @@ async function createCampaign(service: any, body: JsonObject, test: boolean) {
 }
 
 Deno.serve(async (request) => {
-  if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: JSON_HEADERS });
-  if (request.method !== "POST") return json({ error: "method_not_allowed" }, 405);
+  if (request.method === "OPTIONS") {
+    return new Response(null, { status: 204, headers: JSON_HEADERS });
+  }
+  if (request.method !== "POST") {
+    return json({ error: "method_not_allowed" }, 405);
+  }
   if (!request.headers.get("authorization")) {
     return json({ error: "unauthorized" }, 401);
   }
@@ -574,71 +818,168 @@ Deno.serve(async (request) => {
     const action = String(body.action ?? "");
     const organizationId = String(body.organization_id ?? "");
     if (!organizationId) throw new Error("invalid_organization_id");
-    await authorize(request, organizationId);
+    const authorization = await authorize(request, organizationId);
     const service = createUnsecureClient() as any;
+    const projectId = body.project_id ? String(body.project_id) : null;
+    if (authorization.expertProjectIds) {
+      if (!projectId || !authorization.expertProjectIds.has(projectId)) {
+        throw new Error("forbidden");
+      }
+      if (
+        [
+          "preview_import",
+          "audience_preview",
+          "create_campaign",
+          "create_test",
+          "start_campaign",
+          "schedule_campaign",
+          "cancel_campaign",
+        ].includes(action)
+      ) throw new Error("forbidden");
+    }
 
     if (action === "preview_import") {
       return json({ data: await previewAudience(service, body) });
     }
     if (action === "audience_preview") {
-      return json({ data: await previewAudience(service, {
-        ...body,
-        audience: { type: "tags", tag_ids: body.tag_ids },
-      }) });
+      return json({
+        data: await previewAudience(service, {
+          ...body,
+          audience: {
+            type: "tags",
+            tag_ids: body.tag_ids,
+            exclude_tag_ids: body.exclude_tag_ids,
+          },
+        }),
+      });
     }
-    if (action === "create_campaign") return json({ data: await createCampaign(service, body, false) }, 201);
-    if (action === "create_test") return json({ data: await createCampaign(service, body, true) }, 201);
+    if (action === "create_campaign") {
+      return json({ data: await createCampaign(service, body, false) }, 201);
+    }
+    if (action === "create_test") {
+      return json({ data: await createCampaign(service, body, true) }, 201);
+    }
 
     if (action === "list_campaigns") {
-      const { data, error } = await service.rpc("get_campaign_summaries", {
-        p_organization_id: organizationId,
-      });
+      const query = projectId
+        ? service.rpc("get_project_campaign_summaries", {
+          p_organization_id: organizationId,
+          p_project_id: projectId,
+        })
+        : service.rpc("get_campaign_summaries", {
+          p_organization_id: organizationId,
+        });
+      const { data, error } = await query;
       if (error) throw new Error("campaign_list_failed");
       return json({ data: data ?? [] });
     }
     const campaignId = String(body.campaign_id ?? "");
     if (!campaignId) throw new Error("invalid_campaign_id");
     const { data: campaign, error: readError } = await service.from("campaigns")
-      .select("*").eq("id", campaignId).eq("organization_id", organizationId).single();
+      .select("*").eq("id", campaignId).eq("organization_id", organizationId)
+      .single();
     if (readError || !campaign) return json({ error: "not_found" }, 404);
+    if (
+      authorization.expertProjectIds &&
+      (!campaign.project_id ||
+        !authorization.expertProjectIds.has(campaign.project_id))
+    ) {
+      return json({ error: "not_found" }, 404);
+    }
 
     if (action === "get_campaign") {
       const page = Math.max(0, Number(body.page ?? 0) || 0);
-      const { data: summary, error: summaryError } = await service.rpc("get_campaign_summaries", {
-        p_organization_id: organizationId,
-        p_campaign_id: campaignId,
-      });
-      const { data: recipients, error } = await service.from("campaign_recipients")
-        .select("id,phone,display_name,status,message_id,error_code,submitted_at,created_at")
+      const { data: summary, error: summaryError } = await service.rpc(
+        "get_campaign_summaries",
+        {
+          p_organization_id: organizationId,
+          p_campaign_id: campaignId,
+        },
+      );
+      const { data: recipients, error } = await service.from(
+        "campaign_recipients",
+      )
+        .select(
+          "id,phone,display_name,status,message_id,error_code,submitted_at,created_at",
+        )
         .eq("campaign_id", campaignId).order("created_at")
         .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
-      if (error || summaryError) throw new Error("campaign_recipients_read_failed");
-      return json({ data: { ...campaign, summary: summary?.[0] ?? null, recipients: recipients ?? [], page } });
+      if (error || summaryError) {
+        throw new Error("campaign_recipients_read_failed");
+      }
+      return json({
+        data: {
+          ...campaign,
+          summary: summary?.[0] ?? null,
+          recipients: recipients ?? [],
+          page,
+        },
+      });
     }
     if (action === "start_campaign") {
-      const { count, error: countError } = await service.from("campaign_recipients")
-        .select("id", { count: "exact", head: true }).eq("campaign_id", campaignId);
-      if (countError || count !== campaign.total_cap) throw new Error("campaign_ceiling_mismatch");
+      const { count, error: countError } = await service.from(
+        "campaign_recipients",
+      )
+        .select("id", { count: "exact", head: true }).eq(
+          "campaign_id",
+          campaignId,
+        );
+      if (countError || count !== campaign.total_cap) {
+        throw new Error("campaign_ceiling_mismatch");
+      }
       const { data, error } = await service.from("campaigns").update({
-        status: "running", started_at: new Date().toISOString(),
+        status: "running",
+        started_at: new Date().toISOString(),
       }).eq("id", campaignId).eq("status", "draft").select("*").maybeSingle();
       if (error || !data) throw new Error("campaign_not_startable");
       return json({ data });
     }
+    if (action === "schedule_campaign") {
+      const scheduledAt = new Date(String(body.scheduled_at ?? ""));
+      const now = Date.now();
+      if (
+        Number.isNaN(scheduledAt.getTime()) ||
+        scheduledAt.getTime() < now + 60_000 ||
+        scheduledAt.getTime() > now + 366 * 86_400_000
+      ) throw new Error("invalid_scheduled_at");
+      const { count, error: countError } = await service.from(
+        "campaign_recipients",
+      )
+        .select("id", { count: "exact", head: true }).eq(
+          "campaign_id",
+          campaignId,
+        );
+      if (countError || count !== campaign.total_cap) {
+        throw new Error("campaign_ceiling_mismatch");
+      }
+      const { data, error } = await service.from("campaigns").update({
+        status: "scheduled",
+        scheduled_at: scheduledAt.toISOString(),
+      }).eq("id", campaignId).eq("status", "draft").select("*").maybeSingle();
+      if (error || !data) throw new Error("campaign_not_schedulable");
+      return json({ data });
+    }
     if (action === "cancel_campaign") {
       const { data, error } = await service.from("campaigns").update({
-        status: "cancel_requested", cancel_requested_at: new Date().toISOString(),
-      }).eq("id", campaignId).eq("status", "running").select("*").maybeSingle();
+        status: "cancel_requested",
+        cancel_requested_at: new Date().toISOString(),
+      }).eq("id", campaignId).in("status", ["draft", "scheduled", "running"])
+        .select("*").maybeSingle();
       if (error || !data) throw new Error("campaign_not_cancellable");
       return json({ data });
     }
     return json({ error: "unknown_action" }, 400);
   } catch (error) {
     const reason = error instanceof Error ? error.message : "request_failed";
-    const status = reason === "unauthorized" ? 401 : reason === "forbidden" ? 403
+    const status = reason === "unauthorized"
+      ? 401
+      : reason === "forbidden"
+      ? 403
       : reason.startsWith("invalid_") || reason.startsWith("missing_") ||
           reason.includes("limit") || reason.includes("eligible") ||
-          reason.includes("template_") || reason.startsWith("tracking_") ? 400 : 500;
+          reason.includes("template_") || reason.startsWith("tracking_")
+      ? 400
+      : 500;
     if (status === 500) console.error("Campaign management failed", { reason });
     return json({ error: status === 500 ? "request_failed" : reason }, status);
   }

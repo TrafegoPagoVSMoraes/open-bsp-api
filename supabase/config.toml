@@ -121,3 +121,8 @@ entrypoint = "./functions/campaign-management/index.ts"
 verify_jwt = false
 import_map = "./functions/deno.json"
 entrypoint = "./functions/campaign-worker/index.ts"
+
+[functions.expert-management]
+verify_jwt = true
+import_map = "./functions/deno.json"
+entrypoint = "./functions/expert-management/index.ts"

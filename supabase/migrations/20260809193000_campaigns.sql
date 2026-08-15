@@ -169,11 +169,11 @@ language sql stable security definer set search_path = '' as $$
     select c.id, c.name, c.status, c.total_cap, c.created_at, r.id as recipient_id,
       case
         when r.status in ('suppressed', 'cancelled') then 'skipped'
-        when r.status in ('failed', 'ambiguous') or coalesce(m.status, '{}'::jsonb) ? 'failed' then 'failed'
         when coalesce(m.status, '{}'::jsonb) ? 'read' then 'read'
         when coalesce(m.status, '{}'::jsonb) ? 'delivered' then 'delivered'
         when coalesce(m.status, '{}'::jsonb) ? 'sent' then 'sent'
         when coalesce(m.status, '{}'::jsonb) ? 'accepted' or m.external_id is not null then 'accepted'
+        when r.status in ('failed', 'ambiguous') or coalesce(m.status, '{}'::jsonb) ? 'failed' then 'failed'
         else 'pending'
       end as delivery_state
     from public.campaigns c

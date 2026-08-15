@@ -31,6 +31,9 @@ let sessionToken = params.get("obsp") ||
   sessionStorage.getItem("openbsp_tracking_session");
 
 if (params.has("obsp")) {
+  // Preserve attribution before hiding the fragment. A reload or a transient
+  // network failure must not turn an identified visit into an anonymous one.
+  sessionStorage.setItem("openbsp_tracking_session", sessionToken);
   history.replaceState(null, "", location.pathname + location.search);
 }
 
