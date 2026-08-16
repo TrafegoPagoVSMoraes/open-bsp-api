@@ -42,31 +42,52 @@ begin
 end;
 $$;
 
--- Enforce invitation status flow: pending → accepted/rejected only
+-- Expert drafts are inert until an admin activates them. Legacy invitations
+-- keep their pending -> accepted/rejected transition.
 create function public.enforce_invitation_status_flow() returns trigger
 language plpgsql
 set search_path to ''
 as $$
+declare
+  old_status text := old.extra->'invitation'->>'status';
+  new_status text := new.extra->'invitation'->>'status';
+  old_email text := nullif(lower(btrim(old.extra->'invitation'->>'email')), '');
+  new_email text := nullif(lower(btrim(new.extra->'invitation'->>'email')), '');
 begin
-  if old.extra->'invitation' is not null then -- invitation
-    if new.extra->'invitation' is null then -- invitation removed
+  if old.extra->'invitation' is not null then
+    if new.extra->'invitation' is null then
       raise exception 'Cannot remove invitation';
     end if;
 
-    if new.extra->'invitation'->>'email' is distinct from old.extra->'invitation'->>'email' then
-      raise exception 'Cannot change invitation email';
+    if old_status = 'draft' then
+      if new_status not in ('draft', 'pending', 'accepted') then
+        raise exception 'Draft invitation status can only remain draft or change to pending or accepted';
+      end if;
+      if old_email is distinct from new_email and new_status <> 'draft'
+        and new_email is null then
+        raise exception 'An email is required to activate an expert';
+      end if;
+    else
+      if new_email is distinct from old_email then
+        raise exception 'Cannot change invitation email';
+      end if;
+      if old_status is distinct from new_status then
+        if old_status <> 'pending' then
+          raise exception 'Cannot change invitation status from %', old_status;
+        end if;
+        if new_status not in ('accepted', 'rejected') then
+          raise exception 'Invitation status can only be changed to accepted or rejected';
+        end if;
+      end if;
     end if;
 
-    if old.extra->'invitation'->>'status' is distinct from new.extra->'invitation'->>'status' then
-      if old.extra->'invitation'->>'status' <> 'pending' then
-        raise exception 'Cannot change invitation status from %', old.extra->'invitation'->>'status';
-      end if;
-    
-      if new.extra->'invitation'->>'status' not in ('accepted', 'rejected') then
-        raise exception 'Invitation status can only be changed to accepted or rejected';
-      end if;
+    if new_status in ('pending', 'accepted') and new_email is null then
+      raise exception 'An email is required to activate an expert';
     end if;
-  else -- no invitation; original owner
+    if new_status = 'accepted' and new.user_id is null then
+      raise exception 'An accepted expert must be linked to an authenticated user';
+    end if;
+  else
     if new.extra->'invitation' is not null then
       raise exception 'Cannot add invitation to existing agent';
     end if;

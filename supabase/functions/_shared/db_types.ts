@@ -2522,6 +2522,14 @@ export type Database = {
         Args: { p_mapping: Json; p_name: string }
         Returns: Json
       }
+      set_contact_manual_projects: {
+        Args: {
+          p_contact_id: string
+          p_organization_id: string
+          p_project_ids: string[]
+        }
+        Returns: number
+      }
       sync_contact_opt_out_tag: {
         Args: { target_contact_id: string; target_organization_id: string }
         Returns: undefined
